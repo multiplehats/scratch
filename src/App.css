@@ -164,6 +164,32 @@ body {
   display: none; /* Chrome, Safari, Opera */
 }
 
+/* Minimal scrollbars: thin, subtle, and out of the way */
+.scrollbar-minimal::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.scrollbar-minimal::-webkit-scrollbar-track,
+.scrollbar-minimal::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.scrollbar-minimal::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--color-text-muted) 22%, transparent);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+.scrollbar-minimal:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--color-text-muted) 38%, transparent);
+}
+
+.scrollbar-minimal::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--color-text-muted) 55%, transparent);
+}
+
 /* Keep layout width stable when vertical scrollbar appears */
 .scrollbar-gutter-stable {
   scrollbar-gutter: stable;
@@ -1301,4 +1327,25 @@ table.not-prose th {
   100% {
     pointer-events: auto;
   }
+}
+
+/*
+ * Fix: Radix popovers land in the wrong place at non-100% interface zoom.
+ *
+ * Interface zoom is `zoom` on <html>, so every coordinate inside the document
+ * is scaled. Radix positions menus, dropdowns and tooltips from the pointer's
+ * clientX/clientY, which are physical viewport pixels, then writes them as a
+ * translate inside that scaled space — so the offset is multiplied by the zoom
+ * factor again and the menu opens away from the cursor (visibly so by 130%).
+ *
+ * The popper wrapper only positions; the element inside it does the drawing.
+ * So undo the zoom on the wrapper, putting its translate back into physical
+ * pixels, and re-apply it to the content so the menu still looks right.
+ */
+[data-radix-popper-content-wrapper] {
+  zoom: calc(1 / var(--interface-zoom, 1));
+}
+
+[data-radix-popper-content-wrapper] > * {
+  zoom: var(--interface-zoom, 1);
 }
