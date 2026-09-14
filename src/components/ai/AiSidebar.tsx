@@ -34,8 +34,6 @@ import {
   AI_PROVIDER_LABELS,
   AI_PROVIDER_MODELS,
   AI_PROVIDER_ORDER,
-  AI_EFFORT_LABELS,
-  AI_EFFORT_ORDER,
   DEFAULT_AI_EFFORT,
   DEFAULT_AI_MODELS,
   supportsEffort,
@@ -82,7 +80,6 @@ interface Run {
   prompt: string;
   provider: AiProvider;
   model: string;
-  effort: AiEffort | null;
   status: RunStatus;
   steps: Step[];
   output: string;
@@ -164,8 +161,6 @@ function RunCard({ run }: { run: Run }) {
               <TextShimmer>
                 {`${AI_PROVIDER_LABELS[run.provider]}${
                   run.model ? ` · ${run.model}` : ""
-                }${
-                  run.effort ? ` · ${AI_EFFORT_LABELS[run.effort]}` : ""
                 } is working…`}
               </TextShimmer>
               <ElapsedTime />
@@ -242,9 +237,6 @@ export function AiSidebar({
   const [prompt, setPrompt] = useState("");
   const [runs, setRuns] = useState<Run[]>([]);
   const [models, setModels] = useState<Partial<Record<AiProvider, string>>>({});
-  const [efforts, setEfforts] = useState<Partial<Record<AiProvider, AiEffort>>>(
-    {},
-  );
   const [installed, setInstalled] = useState<AiProvider[] | null>(null);
   const [customModelOpen, setCustomModelOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -280,9 +272,6 @@ export function AiSidebar({
         // Pre-dates per-harness models: carry the standalone Ollama model over.
         if (settings.ollamaModel && !stored.ollama) stored.ollama = settings.ollamaModel;
         setModels(stored);
-        setEfforts({
-          ...(settings.aiEfforts as Partial<Record<AiProvider, AiEffort>>),
-        });
       })
       .catch(() => {});
     return () => {
@@ -301,7 +290,6 @@ export function AiSidebar({
   }, [runs]);
 
   const model = models[provider] ?? defaultModelFor(provider);
-  const effort = efforts[provider] ?? DEFAULT_AI_EFFORT;
 
   const modelOptions = useMemo(() => {
     const options = [...AI_PROVIDER_MODELS[provider]];
@@ -325,21 +313,6 @@ export function AiSidebar({
         .catch(() => {});
     },
     [models, provider],
-  );
-
-  const selectEffort = useCallback(
-    (next: AiEffort) => {
-      const updated = { ...efforts, [provider]: next };
-      setEfforts(updated);
-      invoke<Settings>("get_settings")
-        .then((settings) =>
-          invoke("update_settings", {
-            newSettings: { ...settings, aiEfforts: updated },
-          }),
-        )
-        .catch(() => {});
-    },
-    [efforts, provider],
   );
 
   if (!open) return null;
@@ -370,7 +343,8 @@ export function AiSidebar({
     const runId = crypto.randomUUID();
     const runProvider = provider;
     const runModel = model;
-    const runEffort = supportsEffort(runProvider) ? effort : null;
+    // Effort isn't exposed in the UI; medium suits note-sized work.
+    const runEffort = supportsEffort(runProvider) ? DEFAULT_AI_EFFORT : null;
     setPrompt("");
     setRuns((current) => [
       ...current,
@@ -379,7 +353,6 @@ export function AiSidebar({
         prompt: value,
         provider: runProvider,
         model: runModel,
-        effort: runEffort,
         status: "running",
         steps: [],
         output: "",
@@ -555,23 +528,6 @@ export function AiSidebar({
                   </option>
                 ))}
                 <option value={CUSTOM_MODEL_VALUE}>Custom…</option>
-              </PickerSelect>
-            )}
-
-            {supportsEffort(provider) && (
-              <PickerSelect
-                aria-label="Reasoning effort"
-                value={effort}
-                onChange={(event) =>
-                  selectEffort(event.target.value as AiEffort)
-                }
-                disabled={isExecuting}
-              >
-                {AI_EFFORT_ORDER.map((level) => (
-                  <option key={level} value={level}>
-                    {AI_EFFORT_LABELS[level]}
-                  </option>
-                ))}
               </PickerSelect>
             )}
 

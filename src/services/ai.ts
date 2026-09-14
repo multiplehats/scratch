@@ -71,23 +71,7 @@ export const DEFAULT_AI_MODELS: Record<AiProvider, string> = {
 /** Reasoning depth, where the harness exposes it. */
 export type AiEffort = "low" | "medium" | "high" | "xhigh" | "max";
 
-export const AI_EFFORT_ORDER: ReadonlyArray<AiEffort> = [
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-  "max",
-];
-
-export const AI_EFFORT_LABELS: Record<AiEffort, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  xhigh: "Extra high",
-  max: "Max",
-};
-
-/** Note edits are light work; medium is the sweet spot for all of them. */
+/** Note edits are light work, so every run uses medium; it isn't exposed in the UI. */
 export const DEFAULT_AI_EFFORT: AiEffort = "medium";
 
 /** Claude takes `--effort`, Codex `model_reasoning_effort`; the others have no equivalent. */

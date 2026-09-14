@@ -72,8 +72,6 @@ export interface Settings {
   ollamaModel?: string;
   /** Model chosen per AI harness, keyed by provider id. */
   aiModels?: Record<string, string>;
-  /** Reasoning effort chosen per AI harness, keyed by provider id. */
-  aiEfforts?: Record<string, string>;
   ignoredPatterns?: string[];
   smartFolders?: SmartFolder[];
   customColorsLight?: CustomColors;
