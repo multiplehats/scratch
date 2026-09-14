@@ -3504,6 +3504,44 @@ async fn execute_ai_cli(
 const AI_ALLOWED_TOOLS: &str =
     "Read Edit Write Glob Grep WebFetch WebSearch TodoWrite";
 
+/// MCP server names configured for the Claude CLI: user scope, this folder's
+/// project scope, and a `.mcp.json` in the notes folder. Claude rejects
+/// wildcard allow rules, so each server has to be named to be usable in a
+/// headless run.
+fn claude_mcp_servers(notes_folder: &str) -> Vec<String> {
+    fn server_names(value: &serde_json::Value) -> Vec<String> {
+        value
+            .get("mcpServers")
+            .and_then(|servers| servers.as_object())
+            .map(|servers| servers.keys().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    fn read_json(path: PathBuf) -> Option<serde_json::Value> {
+        let contents = std::fs::read_to_string(path).ok()?;
+        serde_json::from_str(&contents).ok()
+    }
+
+    let mut names: Vec<String> = Vec::new();
+
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+        if let Some(config) = read_json(home.join(".claude.json")) {
+            names.extend(server_names(&config));
+            if let Some(project) = config.get("projects").and_then(|p| p.get(notes_folder)) {
+                names.extend(server_names(project));
+            }
+        }
+    }
+
+    if let Some(project_config) = read_json(PathBuf::from(notes_folder).join(".mcp.json")) {
+        names.extend(server_names(&project_config));
+    }
+
+    names.sort();
+    names.dedup();
+    names
+}
+
 /// The contract every harness gets alongside the user's instruction. Runs are
 /// headless, so the agent has to decide rather than ask.
 fn note_agent_instructions(file_path: &str) -> String {
@@ -3581,7 +3619,14 @@ async fn ai_execute_claude(
         "--permission-prompts".to_string(),
         "none".to_string(),
         "--allowedTools".to_string(),
-        AI_ALLOWED_TOOLS.to_string(),
+        std::iter::once(AI_ALLOWED_TOOLS.to_string())
+            .chain(
+                claude_mcp_servers(&folder)
+                    .into_iter()
+                    .map(|server| format!("mcp__{server}")),
+            )
+            .collect::<Vec<_>>()
+            .join(" "),
         "--append-system-prompt".to_string(),
         note_agent_instructions(&canonical.to_string_lossy()),
     ];
@@ -4364,6 +4409,21 @@ fn set_title_bar_theme(
 #[cfg(test)]
 mod tests {
     use super::{extract_tags, is_agent_doc_id, is_config_dir};
+
+    #[test]
+    fn finds_mcp_servers_configured_for_claude() {
+        // The user's own config is the source; an unconfigured folder adds none.
+        let servers = super::claude_mcp_servers("/nonexistent-notes-folder");
+        assert!(servers.iter().all(|name| !name.is_empty()));
+        assert_eq!(
+            servers.len(),
+            servers
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            "server names must be deduplicated"
+        );
+    }
 
     #[test]
     fn hides_agent_docs_at_any_depth() {
