@@ -100,7 +100,7 @@ export function KeyboardShortcutsModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-text/50 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-overlay backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
 

@@ -567,7 +567,7 @@ function AppContent() {
       {/* Shared backdrop for command palette and AI modal */}
       {(paletteOpen || aiModalOpen) && (
         <div
-          className="fixed inset-0 bg-text/50 backdrop-blur-sm z-40 animate-fade-in"
+          className="fixed inset-0 bg-overlay backdrop-blur-sm z-40 animate-fade-in"
           onClick={() => {
             if (paletteOpen) handleClosePalette();
             if (aiModalOpen) setAiModalOpen(false);
