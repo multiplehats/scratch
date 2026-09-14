@@ -262,6 +262,8 @@ interface FolderItemProps {
   pinnedIds: Set<string>;
   multiSelectedNoteIds: Set<string>;
   onNoteClick: (id: string, event: React.MouseEvent) => void;
+  /** Plain selection, without the modifier handling of a note click. */
+  onSelectNote: (id: string) => void;
   focusedItemKey: string | null;
   onCreateNoteHere: (path: string) => void;
   onNewSubfolder: (parentPath: string) => void;
@@ -285,6 +287,7 @@ const FolderItemComponent = memo(function FolderItem({
   pinnedIds,
   multiSelectedNoteIds,
   onNoteClick,
+  onSelectNote,
   focusedItemKey,
   onCreateNoteHere,
   onNewSubfolder,
@@ -306,9 +309,22 @@ const FolderItemComponent = memo(function FolderItem({
   const isEmpty = noteCount === 0 && folder.children.length === 0;
   const isFocused = focusedItemKey === `folder:${folder.path}`;
 
+  // Expanding a folder jumps straight to what was pinned in it; notes are
+  // already sorted pinned-first, so the first match is the one to land on.
+  // Collapsing leaves the open note alone.
   const handleClick = useCallback(() => {
     onToggleCollapse(folder.path);
-  }, [onToggleCollapse, folder.path]);
+    if (!isCollapsed) return;
+    const firstPinned = folder.notes.find((note) => pinnedIds.has(note.id));
+    if (firstPinned) onSelectNote(firstPinned.id);
+  }, [
+    onToggleCollapse,
+    onSelectNote,
+    isCollapsed,
+    folder.path,
+    folder.notes,
+    pinnedIds,
+  ]);
 
   const {
     attributes,
@@ -380,6 +396,7 @@ const FolderItemComponent = memo(function FolderItem({
                   pinnedIds={pinnedIds}
                   multiSelectedNoteIds={multiSelectedNoteIds}
                   onNoteClick={onNoteClick}
+                  onSelectNote={onSelectNote}
                   onCreateNoteHere={onCreateNoteHere}
                   onNewSubfolder={onNewSubfolder}
                   onRenameFolder={onRenameFolder}
@@ -948,6 +965,7 @@ export function FolderTreeView({
             pinnedIds={pinnedIds}
             multiSelectedNoteIds={multiSelectedNoteIds}
             onNoteClick={handleNoteClick}
+            onSelectNote={selectNote}
             onCreateNoteHere={createNoteInFolder}
             onNewSubfolder={handleNewSubfolder}
             onRenameFolder={handleRenameFolder}

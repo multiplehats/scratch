@@ -3498,6 +3498,29 @@ async fn execute_ai_cli(
     Ok(result)
 }
 
+/// Tools a note-editing agent is allowed to use without prompting. Bash and
+/// anything else destructive is deliberately absent: these runs are
+/// non-interactive, so a prompt would be auto-denied rather than shown.
+const AI_ALLOWED_TOOLS: &str =
+    "Read Edit Write Glob Grep WebFetch WebSearch TodoWrite";
+
+/// The contract every harness gets alongside the user's instruction. Runs are
+/// headless, so the agent has to decide rather than ask.
+fn note_agent_instructions(file_path: &str) -> String {
+    format!(
+        "You are editing one Markdown note in the user's notes folder: {file_path}\n\
+         Apply the user's instructions directly to that file. Do not create, \
+         delete, rename, or modify any other file.\n\
+         You are running non-interactively: never ask follow-up questions and \
+         never ask the user to grant permissions or paste content. If an \
+         instruction is ambiguous, take the most reasonable reading, act on it, \
+         and say which reading you took.\n\
+         If the note or the instruction refers to a URL, fetch it yourself \
+         instead of asking for its contents.\n\
+         Finish with one or two sentences describing what you changed."
+    )
+}
+
 /// Reasoning depths the CLIs accept. Values from the frontend are matched
 /// against this list so nothing unexpected reaches a command line.
 const AI_EFFORT_LEVELS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
@@ -3549,7 +3572,6 @@ async fn ai_execute_claude(
     }
 
     let mut args = vec![
-        canonical.to_string_lossy().to_string(),
         "--print".to_string(),
         "--output-format".to_string(),
         "stream-json".to_string(),
@@ -3558,6 +3580,10 @@ async fn ai_execute_claude(
         "acceptEdits".to_string(),
         "--permission-prompts".to_string(),
         "none".to_string(),
+        "--allowedTools".to_string(),
+        AI_ALLOWED_TOOLS.to_string(),
+        "--append-system-prompt".to_string(),
+        note_agent_instructions(&canonical.to_string_lossy()),
     ];
     push_model_flag(&mut args, &model);
     if let Some(level) = effort_level(&effort) {
@@ -3593,11 +3619,8 @@ async fn ai_execute_codex(
         app_config.notes_folder.clone().ok_or("Notes folder not set")?
     };
     let stdin_input = format!(
-        "Edit only this markdown file: {file_path}\n\
-         Apply the user's instructions below directly to that file.\n\
-         Do not create, delete, rename, or modify any other files.\n\
-         User instructions:\n\
-         {prompt}"
+        "{}\n\nUser instructions:\n{prompt}",
+        note_agent_instructions(&file_path)
     );
 
     let mut args = vec![
@@ -3655,10 +3678,8 @@ async fn ai_execute_opencode(
     }
 
     let run_prompt = format!(
-        "Edit the attached markdown file in place.\n\
-         Do not create, delete, rename, or modify any other files.\n\
-         User instructions:\n\
-         {}",
+        "{}\n\nUser instructions:\n{}",
+        note_agent_instructions(&canonical.to_string_lossy()),
         prompt
     );
 
